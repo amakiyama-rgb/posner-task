@@ -1,0 +1,1068 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>ポズナー課題 実験</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;600&family=JetBrains+Mono:wght@400;500;700&family=Shippori+Mincho:wght@500;700&display=swap');
+
+:root{
+  --bg:#f6f3ee;--bg2:#edeae3;--bg3:#e3dfd7;--line:#c8c3b8;
+  --text:#1a1714;--dim:#4a4742;--faint:#8a867e;
+  --acc:#1a4fc0;--acc2:#0d349a;
+  --ok:#1c7a3c;--ng:#bf2626;--tgt:#f0b429;
+  --valid:#1c7a3c;--invalid:#bf2626;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:var(--bg)}
+body{color:var(--text);font-family:'Noto Serif JP',serif;user-select:none;-webkit-user-select:none;overscroll-behavior:none}
+.app{position:fixed;inset:0}
+.screen{position:absolute;inset:0;padding:22px;display:none;flex-direction:column;overflow-y:auto}
+.screen.on{display:flex}
+.spad{padding-top:max(22px,env(safe-area-inset-top));padding-bottom:max(22px,env(safe-area-inset-bottom))}
+
+/* typography */
+.mono{font-family:'JetBrains Mono',monospace}
+.tag{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.22em;color:var(--acc);text-transform:uppercase}
+h1{font-family:'Shippori Mincho',serif;font-size:30px;font-weight:700;letter-spacing:.04em;line-height:1.2}
+h2{font-family:'Shippori Mincho',serif;font-size:20px;font-weight:700;letter-spacing:.04em;margin-bottom:4px}
+.sub{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--dim);letter-spacing:.15em;text-transform:uppercase;margin-bottom:18px}
+
+/* divider */
+.ruler{display:flex;align-items:center;gap:10px;margin:20px 0 12px}
+.ruler span{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--faint);letter-spacing:.2em;text-transform:uppercase;white-space:nowrap}
+.ruler::before,.ruler::after{content:'';flex:1;height:1px;background:var(--line)}
+.ruler::before{flex:0 0 0}
+
+/* buttons */
+.btn{background:transparent;border:1px solid var(--line);color:var(--text);padding:14px 18px;font-family:'Shippori Mincho',serif;font-size:15px;font-weight:600;letter-spacing:.06em;cursor:pointer;border-radius:2px;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:10px;width:100%}
+.btn:active{transform:scale(.98)}
+.btn-p{background:var(--acc);color:var(--bg);border-color:var(--acc)}
+.btn-p:hover{background:#d9a85a}
+.btn-g{border-color:var(--line)}
+.btn-g:hover{border-color:var(--acc2);color:var(--acc)}
+.btn-sm{padding:9px 14px;font-size:13px;width:auto}
+.btn-row{display:flex;gap:8px}
+.arrow{font-family:'JetBrains Mono',monospace;font-size:13px}
+
+/* top bar */
+.topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+.back{background:none;border:none;color:var(--dim);font-family:'JetBrains Mono',monospace;font-size:12px;cursor:pointer;padding:4px 0;letter-spacing:.1em}
+.back:hover{color:var(--acc)}
+
+/* chips */
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{background:transparent;border:1px solid var(--line);color:var(--dim);padding:7px 13px;border-radius:2px;font-family:'JetBrains Mono',monospace;font-size:12px;cursor:pointer;transition:all .12s}
+.chip.sel{background:var(--acc);color:var(--bg);border-color:var(--acc)}
+.chip:active{transform:scale(.96)}
+
+/* settings item */
+.si{padding:16px 0;border-bottom:1px solid var(--line)}
+.si-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px}
+.si-name{font-size:14px;font-weight:600;letter-spacing:.04em}
+.si-val{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--acc)}
+.si-hint{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--faint);margin-top:7px;letter-spacing:.05em}
+
+/* metrics grid */
+.mgrid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:3px;margin:14px 0}
+.mitem{background:var(--bg2);padding:16px 14px}
+.mlabel{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.2em;color:var(--faint);text-transform:uppercase;margin-bottom:7px}
+.mval{font-family:'JetBrains Mono',monospace;font-size:24px;font-weight:500}
+.mval .u{font-size:11px;color:var(--dim);margin-left:3px}
+.mval.v{color:var(--valid)}.mval.iv{color:var(--invalid)}.mval.ef{color:var(--acc)}
+
+/* chart */
+.chart-box{background:var(--bg2);border:1px solid var(--line);border-radius:3px;padding:14px;overflow-x:auto;margin:6px 0 14px}
+.chart-svg{display:block}
+
+/* cards */
+.card{background:var(--bg3);border:1px solid var(--line);border-radius:3px;padding:16px;margin:8px 0}
+.card-head{font-size:13px;font-weight:600;margin-bottom:8px;letter-spacing:.03em}
+
+/* note / interpretation */
+.note{background:var(--bg2);border-left:2px solid var(--acc);padding:13px 15px;margin:10px 0;font-size:13px;line-height:1.8;color:var(--dim)}
+.note strong{color:var(--text)}
+
+/* history */
+.hitem{background:var(--bg2);border:1px solid var(--line);border-radius:3px;padding:13px 15px;margin-bottom:7px}
+.hhead{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:9px}
+.hdate{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--dim);letter-spacing:.05em}
+.htag{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--faint)}
+.hstats{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;font-family:'JetBrains Mono',monospace;font-size:10px}
+.hsl{color:var(--faint);font-size:9px;letter-spacing:.12em;margin-bottom:2px}
+.hsv{font-size:12px;color:var(--text)}
+.hsv.v{color:var(--valid)}.hsv.iv{color:var(--invalid)}.hsv.ef{color:var(--acc)}
+
+/* explanation */
+.exp-section{margin:18px 0}
+.exp-title{font-family:'Shippori Mincho',serif;font-size:16px;font-weight:700;margin-bottom:8px;color:var(--text)}
+.exp-body{font-size:13px;line-height:1.95;color:var(--dim)}
+.exp-body strong{color:var(--text)}
+.exp-body em{color:var(--acc);font-style:normal;font-weight:600}
+
+/* participant badge */
+.pbadge{background:var(--bg2);border:1px solid var(--line);border-radius:3px;padding:10px 14px;display:inline-flex;align-items:center;gap:10px;margin:10px 0}
+.pbadge .pid{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--acc);letter-spacing:.1em}
+
+/* big number */
+.bignum{font-family:'JetBrains Mono',monospace;font-size:40px;font-weight:500;color:var(--acc);line-height:1}
+.bignum .u{font-size:16px;color:var(--dim)}
+
+/* tab bar */
+.tabs{display:flex;border-bottom:1px solid var(--line);margin-bottom:16px;gap:0}
+.tab{flex:1;padding:11px 8px;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.12em;text-align:center;cursor:pointer;color:var(--dim);border-bottom:2px solid transparent;transition:all .15s;background:none;border-left:none;border-right:none;border-top:none}
+.tab.sel{color:var(--acc);border-bottom-color:var(--acc)}
+.tab-panel{display:none}.tab-panel.on{display:block}
+
+/* notice */
+.notice{background:var(--bg3);border:1px solid var(--line);border-radius:3px;padding:12px 14px;font-size:12px;line-height:1.7;color:var(--dim);margin:10px 0}
+.notice strong{color:var(--text)}
+
+/* modal */
+.modal-bg{position:fixed;inset:0;background:rgba(8,12,17,.88);display:none;align-items:center;justify-content:center;padding:24px;z-index:200}
+.modal-bg.on{display:flex}
+.modal{background:var(--bg3);border:1px solid var(--line);padding:22px;border-radius:4px;max-width:340px;width:100%}
+.modal-title{font-size:15px;font-weight:600;margin-bottom:8px}
+.modal-text{font-size:13px;color:var(--dim);line-height:1.7;margin-bottom:18px}
+
+/* loading */
+.loading{text-align:center;padding:30px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--faint);letter-spacing:.15em}
+
+/* ===== TASK SCREEN ===== */
+#s-task{background:var(--bg);padding:0}
+.pbar{position:absolute;top:0;left:0;right:0;height:2px;background:var(--line);z-index:5}
+.pfill{height:100%;background:var(--acc);width:0;transition:width .3s}
+.tctr{position:absolute;top:13px;right:15px;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--faint);z-index:5}
+.stage{flex:1;position:relative;display:flex;align-items:center;justify-content:center;gap:clamp(56px,21vw,170px)}
+.fix{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-family:'JetBrains Mono',monospace;font-size:26px;color:var(--text);opacity:0;transition:opacity .07s}
+.fix.on{opacity:1}
+.tbox{width:clamp(60px,17vw,94px);height:clamp(60px,17vw,94px);border:2px solid var(--line);border-radius:3px;position:relative;transition:border-color .07s,box-shadow .07s}
+.tbox.cued{border-color:var(--acc);box-shadow:0 0 0 1px var(--acc),0 0 18px rgba(200,152,74,.28)}
+.dot{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) scale(0);width:18px;height:18px;background:var(--tgt);border-radius:50%;box-shadow:0 0 14px var(--tgt);transition:transform .04s}
+.dot.on{transform:translate(-50%,-50%) scale(1)}
+.fbk{position:absolute;bottom:23%;left:50%;transform:translateX(-50%);font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--faint);letter-spacing:.22em;opacity:0;transition:opacity .18s;white-space:nowrap}
+.fbk.on{opacity:1}.fbk.err{color:var(--invalid)}
+.rrow{display:flex;height:18vh;min-height:100px;border-top:1px solid var(--line)}
+.rbtn{flex:1;background:var(--bg);color:var(--faint);border:none;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.22em;cursor:pointer;transition:background .1s;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px}
+.rbtn:active{background:var(--bg2);color:var(--acc)}
+.rbtn:first-child{border-right:1px solid var(--line)}
+.rbtn .arr{font-size:26px;opacity:.55}
+
+/* overlay */
+.ovl{position:absolute;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;text-align:center;z-index:10}
+.ovl-tag{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.28em;color:var(--acc);margin-bottom:12px}
+.ovl-title{font-family:'Shippori Mincho',serif;font-size:26px;margin-bottom:14px;line-height:1.3}
+.ovl-text{font-size:13px;line-height:1.95;color:var(--dim);max-width:370px;margin-bottom:26px}
+.ovl-text strong{color:var(--text)}
+
+/* welcome hero */
+.hero{flex:1;display:flex;flex-direction:column;justify-content:center;gap:24px;max-width:480px;margin:0 auto;width:100%}
+
+/* animations */
+@keyframes fi{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+.screen.on>*{animation:fi .35s ease both}
+
+/* group stat total banner */
+.stat-banner{background:var(--bg2);border:1px solid var(--line);border-radius:3px;padding:18px 20px;display:grid;grid-template-columns:repeat(3,1fr);gap:0;text-align:center;margin:14px 0}
+.stat-banner>div+div{border-left:1px solid var(--line)}
+.sbn-v{font-family:'JetBrains Mono',monospace;font-size:26px;font-weight:500;color:var(--acc);line-height:1.1}
+.sbn-l{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--faint);letter-spacing:.18em;text-transform:uppercase;margin-top:5px}
+
+/* rt comparison bar chart */
+.rbar-wrap{margin:6px 0 14px}
+
+/* ===== task screen forced dark override ===== */
+#s-task,.stage,.rrow,.rbtn,.ovl{background:#0d0d0d !important;color:#d8d4cc}
+.pbar{background:#1e1e1e !important}
+.pfill{background:#c8984a !important}
+.tctr{color:#444 !important}
+.tbox{border-color:#2a2a2a !important}
+.tbox.cued{border-color:#d4a040 !important;box-shadow:0 0 0 1px #d4a040,0 0 16px rgba(212,160,64,.3) !important}
+.dot{background:#f0b429 !important;box-shadow:0 0 14px #f0b429 !important}
+.fix{color:#ccc8c0 !important}
+.fbk{color:#555 !important}.fbk.err{color:#c05050 !important}
+.rbtn{border-color:#1a1a1a !important}
+.rbtn:first-child{border-right:1px solid #1e1e1e !important}
+.rbtn:active{background:#141414 !important;color:#d4a040 !important}
+.rbtn .arr{opacity:.4}
+.ovl{display:flex}
+/* overlay text: bright and readable on dark background */
+.ovl-tag{color:#5eb3f6 !important}
+.ovl-title{color:#ffffff !important;font-weight:700}
+.ovl-text{color:#e0dcd4 !important}
+.ovl-text strong{color:#ffffff !important}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- ===================== WELCOME ===================== -->
+<div class="screen spad on" id="s-welcome">
+<div class="hero">
+  <div>
+    <div class="tag" style="margin-bottom:6px">COGNITIVE PSYCHOLOGY · 1980</div>
+    <h1>ポズナー課題</h1>
+    <div class="sub">Posner Cueing Task Experiment</div>
+  </div>
+  <p style="font-size:14px;line-height:1.9;color:var(--dim)">
+    視覚的な<strong style="color:var(--text)">空間注意</strong>を計測する古典的な認知心理学実験です。あなたの反応時間データは匿名で集積され、グループ全体の実験結果として閲覧できます。
+  </p>
+  <div class="notice">
+    <strong>プライバシーについて</strong><br>
+    参加データ(反応時間・正答率の集計値)は匿名でこの実験に参加した全員と共有されます。個人を特定できる情報は保存されません。
+  </div>
+  <div style="display:flex;flex-direction:column;gap:10px">
+    <button class="btn btn-p" onclick="goto('s-settings')">実験に参加する <span class="arrow">→</span></button>
+    <button class="btn btn-g" onclick="openGroup()">グループ結果・実験解説を見る</button>
+    <button class="btn btn-g" onclick="goto('s-myhist');loadMyHistory()">自分の履歴を見る</button>
+  </div>
+</div>
+</div>
+
+<!-- ===================== SETTINGS ===================== -->
+<div class="screen spad" id="s-settings">
+<div class="topbar"><button class="back" onclick="goto('s-welcome')">← もどる</button><span class="tag">SETTINGS</span></div>
+<h1 style="font-size:22px">課題設定</h1>
+<div class="sub">experiment parameters</div>
+
+<div class="si">
+  <div class="si-head"><span class="si-name">試行数</span><span class="si-val" id="cv-trials">40</span></div>
+  <div class="chips" data-cfg="trials"><div class="chip" data-v="20">20</div><div class="chip sel" data-v="40">40</div><div class="chip" data-v="60">60</div><div class="chip" data-v="80">80</div></div>
+  <div class="si-hint">total trials per session</div>
+</div>
+<div class="si">
+  <div class="si-head"><span class="si-name">妥当キュー率</span><span class="si-val" id="cv-validity">80%</span></div>
+  <div class="chips" data-cfg="validity"><div class="chip" data-v="50">50%</div><div class="chip" data-v="70">70%</div><div class="chip sel" data-v="80">80%</div><div class="chip" data-v="90">90%</div></div>
+  <div class="si-hint">probability cue predicts target location</div>
+</div>
+<div class="si">
+  <div class="si-head"><span class="si-name">SOA（キュー→標的）</span><span class="si-val" id="cv-soa">200 ms</span></div>
+  <div class="chips" data-cfg="soa"><div class="chip" data-v="100">100ms</div><div class="chip sel" data-v="200">200ms</div><div class="chip" data-v="400">400ms</div><div class="chip" data-v="800">800ms</div></div>
+  <div class="si-hint">stimulus onset asynchrony</div>
+</div>
+<div class="si">
+  <div class="si-head"><span class="si-name">練習試行</span><span class="si-val" id="cv-practice">5試行</span></div>
+  <div class="chips" data-cfg="practice"><div class="chip" data-v="0">なし</div><div class="chip sel" data-v="5">5試行</div><div class="chip" data-v="10">10試行</div></div>
+  <div class="si-hint">practice block before main recording</div>
+</div>
+
+<div style="margin-top:26px">
+  <button class="btn btn-p" onclick="startSession()">計測開始 <span class="arrow">→</span></button>
+</div>
+</div>
+
+<!-- ===================== TASK ===================== -->
+<div class="screen" id="s-task">
+  <div class="pbar"><div class="pfill" id="pfill"></div></div>
+  <div class="tctr" id="tctr">— / —</div>
+  <div class="stage" id="stage">
+    <div class="tbox" id="bL"><div class="dot" id="dL"></div></div>
+    <div class="fix" id="fix">+</div>
+    <div class="tbox" id="bR"><div class="dot" id="dR"></div></div>
+    <div class="fbk" id="fbk"></div>
+  </div>
+  <div class="rrow">
+    <button class="rbtn" id="rL" onclick="respond('L')"><span class="arr">◀</span><span>LEFT</span></button>
+    <button class="rbtn" id="rR" onclick="respond('R')"><span class="arr">▶</span><span>RIGHT</span></button>
+  </div>
+  <div class="ovl" id="ovl">
+    <div class="ovl-tag" id="ovl-tag"></div>
+    <div class="ovl-title" id="ovl-title"></div>
+    <div class="ovl-text" id="ovl-text"></div>
+    <button class="btn btn-p" id="ovl-btn" onclick="startBlock()" style="max-width:240px">スタート <span class="arrow">→</span></button>
+  </div>
+</div>
+
+<!-- ===================== MY RESULTS ===================== -->
+<div class="screen spad" id="s-myres">
+<div class="topbar"><button class="back" onclick="goto('s-welcome')">← ホーム</button><span class="tag">MY RESULT</span></div>
+<h1 style="font-size:22px">あなたの結果</h1>
+<div class="sub" id="myres-ts">—</div>
+
+<div class="mgrid">
+  <div class="mitem"><div class="mlabel">妥当キュー RT</div><div class="mval v" id="mr-v">—<span class="u">ms</span></div></div>
+  <div class="mitem"><div class="mlabel">非妥当キュー RT</div><div class="mval iv" id="mr-iv">—<span class="u">ms</span></div></div>
+  <div class="mitem"><div class="mlabel">キュー効果</div><div class="mval ef" id="mr-ef">—<span class="u">ms</span></div></div>
+  <div class="mitem"><div class="mlabel">正答率</div><div class="mval" id="mr-acc">—<span class="u">%</span></div></div>
+</div>
+
+<div class="note" id="mr-note"></div>
+
+<div class="ruler"><span>trial RT chart</span></div>
+<div class="chart-box"><svg class="chart-svg" id="my-chart"></svg></div>
+
+<div style="display:flex;flex-direction:column;gap:9px;margin-top:6px">
+  <button class="btn btn-p" onclick="openGroup()">グループ結果・実験解説を見る <span class="arrow">→</span></button>
+  <button class="btn btn-g" onclick="goto('s-settings')">もう一度参加する</button>
+</div>
+</div>
+
+<!-- ===================== GROUP RESULTS ===================== -->
+<div class="screen spad" id="s-group">
+<div class="topbar"><button class="back" onclick="goto('s-welcome')">← ホーム</button><span class="tag">GROUP RESULTS</span></div>
+<h1 style="font-size:22px">グループ実験結果</h1>
+<div class="sub" id="grp-sub">loading…</div>
+
+<div class="tabs">
+  <button class="tab sel" data-tab="t-data" onclick="switchTab(this,'t-data')">データ集計</button>
+  <button class="tab" data-tab="t-exp" onclick="switchTab(this,'t-exp')">実験の解説</button>
+</div>
+
+<!-- DATA TAB -->
+<div class="tab-panel on" id="t-data">
+  <div id="grp-loading" class="loading">データ読込中…</div>
+  <div id="grp-content" style="display:none">
+    <div class="stat-banner" id="grp-banner">
+      <div><div class="sbn-v" id="g-n">—</div><div class="sbn-l">参加者数</div></div>
+      <div><div class="sbn-v" id="g-trials">—</div><div class="sbn-l">総試行数</div></div>
+      <div><div class="sbn-v" id="g-acc">—</div><div class="sbn-l">平均正答率</div></div>
+    </div>
+
+    <div class="mgrid">
+      <div class="mitem"><div class="mlabel">平均 妥当RT</div><div class="mval v" id="g-vrt">—<span class="u">ms</span></div></div>
+      <div class="mitem"><div class="mlabel">平均 非妥当RT</div><div class="mval iv" id="g-ivrt">—<span class="u">ms</span></div></div>
+      <div class="mitem"><div class="mlabel">平均キュー効果</div><div class="mval ef" id="g-ef">—<span class="u">ms</span></div></div>
+      <div class="mitem"><div class="mlabel">標準偏差</div><div class="mval" id="g-sd">—<span class="u">ms</span></div></div>
+    </div>
+
+    <div class="note" id="g-note"></div>
+
+    <div class="ruler"><span>妥当 vs 非妥当 反応時間</span></div>
+    <div class="chart-box"><svg class="chart-svg" id="g-rtchart"></svg></div>
+
+    <div class="ruler"><span>キュー効果の個人差</span></div>
+    <div class="chart-box"><svg class="chart-svg" id="g-efchart"></svg></div>
+
+    <div class="ruler"><span>SOA別 キュー効果</span></div>
+    <div class="chart-box"><svg class="chart-svg" id="g-soaChart"></svg></div>
+
+    <div style="text-align:right;margin-top:4px">
+      <button class="btn btn-g btn-sm" onclick="openGroup()">↺ 更新</button>
+    </div>
+  </div>
+  <div id="grp-empty" style="display:none" class="loading">まだ参加者がいません。<br>最初に実験に参加してみましょう。</div>
+</div>
+
+<!-- EXPLANATION TAB -->
+<div class="tab-panel" id="t-exp">
+<div class="exp-section">
+  <div class="exp-title">ポズナー課題とは</div>
+  <div class="exp-body">
+    アメリカの認知心理学者マイケル・ポズナー（Michael Posner）が<strong>1980年</strong>に発表した、視覚的な空間注意を計測するための古典的なパラダイムです。<br><br>
+    画面左右に2つの枠を配置し、どちらかを<em>キュー（手がかり）</em>として一瞬光らせた後、いずれかに<strong>標的</strong>を表示します。参加者はできるだけ速く標的の側を押します。
+  </div>
+</div>
+
+<div class="exp-section">
+  <div class="exp-title">注意のスポットライト</div>
+  <div class="exp-body">
+    ポズナーは注意を<em>「スポットライト」</em>にたとえました。舞台のスポットライトが照らす場所では俳優がよく見えるように、注意が向いた場所では視覚情報の処理が速く・正確になります。<br><br>
+    重要な点は、このスポットライトは<strong>目を動かさなくても</strong>移動できるということです。これを<em>潜在的注意（Covert attention）</em>と呼びます。
+  </div>
+</div>
+
+<div class="exp-section">
+  <div class="exp-title">外因性注意と妥当性効果</div>
+  <div class="exp-body">
+    この課題で用いるキューは<em>外因性（Exogenous）</em>キューと呼ばれます。周辺視野に突然現れる刺激が、意識的な制御なしに<strong>反射的に注意を引きつける</strong>タイプです。<br><br>
+    <strong>妥当キュー条件</strong>（キューと同じ側に標的が出る）では、すでに注意がその場所に向いているため反応が速くなります。<br>
+    <strong>非妥当キュー条件</strong>（反対側に標的が出る）では、注意を移動させる必要があるため遅くなります。<br><br>
+    この差が<em>キュー効果（Cueing Effect）</em>であり、空間注意のシフトに要するコストを反映しています。
+  </div>
+</div>
+
+<div class="exp-section">
+  <div class="exp-title">SOAと抑制復帰（IOR）</div>
+  <div class="exp-body">
+    SOA（Stimulus Onset Asynchrony：キューから標的が出るまでの時間）の長さによって結果が変わります。<br><br>
+    <strong>SOA ≤ 300ms</strong>：通常のキュー効果（妥当 &lt; 非妥当）が見られます。<br>
+    <strong>SOA ≥ 500ms</strong>：<em>抑制復帰（Inhibition of Return: IOR）</em>と呼ばれる現象が起き、すでに注意を向けた場所への再注目が一時的に抑制されます。この場合、非妥当キューの方が速くなることがあります。<br><br>
+    IORは「既にチェックした場所への無駄な注意の再割り当てを防ぐ」という、進化的に適応的な機能と考えられています。
+  </div>
+</div>
+
+<div class="exp-section">
+  <div class="exp-title">実験の応用と意義</div>
+  <div class="exp-body">
+    ポズナー課題は今日でも広く使われています。<br><br>
+    • <strong>半側空間無視</strong>：脳卒中後に片側への注意が著しく低下する症状の診断・評価<br>
+    • <strong>ADHD</strong>：注意の持続・選択性の研究<br>
+    • <strong>加齢研究</strong>：高齢になるにつれてキュー効果がどう変化するか<br>
+    • <strong>薬理研究</strong>：カフェインや抗不安薬が注意機能に与える影響<br><br>
+    単純に見えるこの課題が、<em>ヒトの注意メカニズムの理解に半世紀にわたって貢献</em>してきました。
+  </div>
+</div>
+
+<div class="exp-section">
+  <div class="exp-title">このグループデータの読み方</div>
+  <div class="exp-body">
+    「データ集計」タブで確認できる各指標の解釈：<br><br>
+    • <em>キュー効果 &gt; 30ms</em>：はっきりした空間注意効果。典型的な結果です。<br>
+    • <em>キュー効果 10〜30ms</em>：軽度の効果。試行数が少ないか、個人差が大きい可能性。<br>
+    • <em>キュー効果 ≈ 0ms</em>：効果が検出されていない。SOA・試行数・妥当率を変えると出やすくなります。<br>
+    • <em>キュー効果 &lt; 0ms</em>：SOAが長い場合はIOR、そうでなければノイズの可能性。<br><br>
+    個人差の分布グラフでは、多くの人が正の値（妥当の方が速い）に集中していれば、グループ全体で効果が再現されていることを示します。
+  </div>
+</div>
+
+<div style="margin-top:10px">
+  <button class="btn btn-p" onclick="goto('s-settings')">実験に参加する <span class="arrow">→</span></button>
+</div>
+</div><!-- end t-exp -->
+</div><!-- end s-group -->
+
+<!-- ===================== MY HISTORY ===================== -->
+<div class="screen spad" id="s-myhist">
+<div class="topbar"><button class="back" onclick="goto('s-welcome')">← ホーム</button><span class="tag">MY HISTORY</span></div>
+<h1 style="font-size:22px">自分の履歴</h1>
+<div class="sub" id="mh-sub">—</div>
+
+<div class="mgrid">
+  <div class="mitem"><div class="mlabel">通算 妥当RT</div><div class="mval v" id="mh-v">—<span class="u">ms</span></div></div>
+  <div class="mitem"><div class="mlabel">通算 非妥当RT</div><div class="mval iv" id="mh-iv">—<span class="u">ms</span></div></div>
+  <div class="mitem"><div class="mlabel">平均キュー効果</div><div class="mval ef" id="mh-ef">—<span class="u">ms</span></div></div>
+  <div class="mitem"><div class="mlabel">セッション数</div><div class="mval" id="mh-n">—</div></div>
+</div>
+
+<div class="ruler"><span>sessions</span></div>
+<div id="mh-list"></div>
+
+<div class="btn-row" style="margin-top:16px">
+  <button class="btn btn-g btn-sm" onclick="confirmClear()">履歴消去</button>
+  <button class="btn btn-p" onclick="goto('s-settings')">新しい計測</button>
+</div>
+</div>
+
+<!-- modal -->
+<div class="modal-bg" id="modal">
+  <div class="modal">
+    <div class="modal-title">個人履歴を削除しますか?</div>
+    <div class="modal-text">あなたの個人履歴は削除されます。グループ全体のデータには影響しません。</div>
+    <div class="btn-row">
+      <button class="btn btn-g btn-sm" onclick="closeModal()">キャンセル</button>
+      <button class="btn btn-p btn-sm" onclick="doClear()">削除する</button>
+    </div>
+  </div>
+</div>
+
+</div><!-- .app -->
+
+<script>
+'use strict';
+
+// ===== COLOR PALETTE (mirrors CSS vars) =====
+const C={
+  valid:'#1c7a3c', invalid:'#bf2626', acc:'#1a4fc0',
+  dim:'#4a4742', faint:'#8a867e', line:'#c8c3b8',
+  text:'#1a1714', bg2:'#edeae3'
+};
+
+// ========== CONFIG ==========
+const cfg = {trials:40, validity:80, soa:200, practice:5};
+const SHARED_PFX = 'exp:v1:session:';
+const MY_PFX = 'my:v1:session:';
+
+// ========== NAV ==========
+function goto(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));
+  document.getElementById(id).classList.add('on');
+}
+async function openGroup(){
+  goto('s-group');
+  await loadGroupData();
+}
+function switchTab(btn, panelId){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('sel'));
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('on'));
+  btn.classList.add('sel');
+  document.getElementById(panelId).classList.add('on');
+}
+
+// ========== SETTINGS CHIPS ==========
+document.querySelectorAll('.chips').forEach(g=>{
+  g.addEventListener('click',e=>{
+    const chip=e.target.closest('.chip'); if(!chip)return;
+    g.querySelectorAll('.chip').forEach(c=>c.classList.remove('sel'));
+    chip.classList.add('sel');
+    cfg[g.dataset.cfg]=parseInt(chip.dataset.v);
+    refreshLabels();
+  });
+});
+function refreshLabels(){
+  document.getElementById('cv-trials').textContent=cfg.trials;
+  document.getElementById('cv-validity').textContent=cfg.validity+'%';
+  document.getElementById('cv-soa').textContent=cfg.soa+' ms';
+  document.getElementById('cv-practice').textContent=cfg.practice===0?'なし':cfg.practice+'試行';
+}
+
+// ========== TRIAL ENGINE ==========
+let phase='idle', trials=[], results=[], currentTrial=0;
+let inPractice=false, tStart=0;
+let _resolver=null;
+const pending=[];
+
+function wait(ms){
+  return new Promise(r=>{
+    const t=setTimeout(()=>{pending.splice(pending.indexOf(t),1);r();},ms);
+    pending.push(t);
+  });
+}
+function cancelAll(){pending.forEach(clearTimeout);pending.length=0;}
+
+function buildTrials(n, vPct){
+  const arr=[];
+  const nV=Math.round(n*vPct/100);
+  for(let i=0;i<n;i++){
+    const cue=Math.random()<.5?'L':'R';
+    const valid=i<nV;
+    arr.push({cue, target:valid?cue:(cue==='L'?'R':'L'), valid});
+  }
+  for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];}
+  return arr;
+}
+
+function startSession(){
+  results=[]; currentTrial=0; inPractice=cfg.practice>0;
+  goto('s-task');
+  setOverlay(
+    inPractice?'PRACTICE':'MAIN BLOCK',
+    inPractice?'練習ブロック':'本番ブロック',
+    inPractice
+      ? '操作を確認しましょう。中央の <strong>+</strong> を見つめ、●が出た側をタップしてください。'
+      : `${cfg.trials}試行を計測します。集中して、できるだけ速く反応してください。`
+  );
+}
+
+function setOverlay(tag,title,text){
+  document.getElementById('ovl-tag').textContent=tag;
+  document.getElementById('ovl-title').textContent=title;
+  document.getElementById('ovl-text').innerHTML=text;
+  document.getElementById('ovl').style.display='flex';
+}
+function hideOverlay(){document.getElementById('ovl').style.display='none';}
+
+async function startBlock(){
+  hideOverlay();
+  trials=buildTrials(inPractice?cfg.practice:cfg.trials, cfg.validity);
+  currentTrial=0;
+  await wait(700);
+  runTrial();
+}
+
+async function runTrial(){
+  if(currentTrial>=trials.length){
+    if(inPractice){
+      inPractice=false; results=[];
+      setOverlay('MAIN BLOCK','本番開始',`練習おつかれさまでした。これから <strong>${cfg.trials}試行</strong>を計測します。`);
+      return;
+    }
+    await finishSession(); return;
+  }
+  const t=trials[currentTrial];
+  updatePbar();
+  // fixation
+  phase='fix'; setFix(1); await wait(500+Math.random()*300);
+  // cue
+  phase='cue'; setCue(t.cue,1); await wait(100); setCue(t.cue,0);
+  // soa
+  await wait(cfg.soa-100);
+  // target
+  phase='target'; tStart=performance.now(); setDot(t.target,1);
+  const resp=await Promise.race([
+    new Promise(r=>{_resolver=r;}),
+    wait(2500).then(()=>({side:null,rt:null,timeout:true}))
+  ]);
+  _resolver=null;
+  setDot(t.target,0); setFix(0);
+  const ok=resp.side===t.target;
+  results.push({i:currentTrial+1,cue:t.cue,target:t.target,valid:t.valid,rt:resp.rt,correct:ok,timeout:!!resp.timeout});
+  if(inPractice||!ok||resp.timeout){showFbk(resp.timeout?'TIME OUT':ok?'OK':'MISS',!ok);}
+  phase='iti'; await wait(inPractice||!ok?700:350); hideFbk();
+  currentTrial++; runTrial();
+}
+
+function respond(side){
+  if(phase!=='target'||!_resolver)return;
+  _resolver({side,rt:performance.now()-tStart});
+}
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowLeft'||e.key==='f'||e.key==='F')respond('L');
+  if(e.key==='ArrowRight'||e.key==='j'||e.key==='J')respond('R');
+});
+
+function setFix(v){document.getElementById('fix').classList.toggle('on',!!v);}
+function setCue(s,v){document.getElementById(s==='L'?'bL':'bR').classList.toggle('cued',!!v);}
+function setDot(s,v){document.getElementById(s==='L'?'dL':'dR').classList.toggle('on',!!v);}
+function showFbk(t,err){const f=document.getElementById('fbk');f.textContent=t;f.classList.toggle('err',err);f.classList.add('on');}
+function hideFbk(){document.getElementById('fbk').classList.remove('on');}
+function updatePbar(){
+  const pct=(currentTrial/trials.length)*100;
+  document.getElementById('pfill').style.width=pct+'%';
+  document.getElementById('tctr').textContent=(inPractice?'練習 ':'本番 ')+(currentTrial+1)+' / '+trials.length;
+}
+
+// ========== STATS ==========
+function computeStats(rs){
+  const ok=rs.filter(r=>r.correct&&!r.timeout&&r.rt!==null);
+  const vRTs=ok.filter(r=>r.valid).map(r=>r.rt);
+  const iRTs=ok.filter(r=>!r.valid).map(r=>r.rt);
+  const mean=a=>a.length?a.reduce((s,x)=>s+x,0)/a.length:null;
+  const vM=mean(vRTs), iM=mean(iRTs);
+  return {
+    n:rs.length, vN:vRTs.length, iN:iRTs.length,
+    vM, iM, effect:(vM!==null&&iM!==null)?iM-vM:null,
+    acc:rs.length?(rs.filter(r=>r.correct&&!r.timeout).length/rs.length)*100:0
+  };
+}
+
+// ========== FINISH ==========
+async function finishSession(){
+  phase='idle'; cancelAll();
+  setFix(0); setCue('L',0); setCue('R',0); setDot('L',0); setDot('R',0);
+  document.getElementById('pfill').style.width='100%';
+
+  try {
+    const stats=computeStats(results);
+    const sid=Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,7);
+    const session={
+      sid, timestamp:Date.now(),
+      cfg:{trials:cfg.trials,validity:cfg.validity,soa:cfg.soa},
+      stats
+    };
+    // Navigate first so elements are in layout
+    goto('s-myres');
+    await new Promise(r=>requestAnimationFrame(r));
+    await new Promise(r=>requestAnimationFrame(r));
+    renderMyResults(session);
+    // Save: shared (anonymous, group aggregate) + private (personal history)
+    await Promise.all([
+      saveShared(session),
+      savePrivate(session)
+    ]);
+  } catch(err){
+    console.error('finishSession',err);
+    goto('s-myres');
+  }
+}
+
+// ========== MY RESULTS RENDER ==========
+function renderMyResults(session){
+  const s=session.stats;
+  document.getElementById('myres-ts').textContent=fmtDate(session.timestamp)+' · '+session.cfg.trials+'試行 SOA'+session.cfg.soa+'ms';
+  setMval('mr-v','v',s.vM!==null?Math.round(s.vM):'—','ms');
+  setMval('mr-iv','iv',s.iM!==null?Math.round(s.iM):'—','ms');
+  setMval('mr-ef','ef',s.effect!==null?(s.effect>0?'+':'')+Math.round(s.effect):'—','ms');
+  setMval('mr-acc','',s.acc.toFixed(1),'%');
+  // note
+  const n=document.getElementById('mr-note');
+  if(s.effect===null){n.innerHTML='データ不足のため評価できませんでした。';}
+  else if(s.effect>=30){n.innerHTML=`非妥当キューで <strong>${Math.round(s.effect)} ms 遅く</strong>なりました。はっきりしたキュー効果が観察されています。`;}
+  else if(s.effect>=10){n.innerHTML=`<strong>${Math.round(s.effect)} ms</strong> の軽度のキュー効果が見られます。試行数を増やすとより安定します。`;}
+  else if(s.effect>=-10){n.innerHTML=`キュー効果はほぼ見られませんでした（${Math.round(s.effect)} ms）。SOAや妥当率を変えてみましょう。`;}
+  else{n.innerHTML=`非妥当キューの方が速い結果（<strong>${Math.round(s.effect)} ms</strong>）です。SOA ${session.cfg.soa}ms ではIOR（抑制復帰）が起きている可能性があります。`;}
+  // chart
+  drawMyChart(results);
+}
+
+function setMval(id, cls, val, unit){
+  const el=document.getElementById(id);
+  el.className='mval'+(cls?' '+cls:'');
+  el.innerHTML=val+'<span class="u">'+unit+'</span>';
+}
+
+function drawMyChart(rs){
+  const svg=document.getElementById('my-chart');
+  const data=rs.filter(r=>r.correct&&!r.timeout&&r.rt!==null);
+  const W=Math.max(svg.parentElement.clientWidth-28,200);
+  const H=150, pL=34,pR=6,pT=8,pB=20;
+  svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  svg.setAttribute('width',W); svg.setAttribute('height',H);
+  svg.innerHTML='';
+  if(!data.length){return;}
+  const rts=data.map(d=>d.rt);
+  const hi=Math.max(...rts,700), lo=Math.min(...rts,100);
+  const xS=(W-pL-pR)/Math.max(data.length-1,1);
+  [lo,Math.round((hi+lo)/2),hi].forEach(v=>{
+    const y=pT+(H-pT-pB)*(1-(v-lo)/(hi-lo));
+    svg.insertAdjacentHTML('beforeend',
+      `<line x1="${pL}" y1="${y}" x2="${W-pR}" y2="${y}" stroke="${C.line}" stroke-dasharray="2,3"/>` +
+      `<text x="${pL-4}" y="${y+3}" fill="${C.faint}" font-family="JetBrains Mono" font-size="8" text-anchor="end">${Math.round(v)}</text>`
+    );
+  });
+  data.forEach((d,i)=>{
+    const x=pL+xS*i, y=pT+(H-pT-pB)*(1-(d.rt-lo)/(hi-lo));
+    svg.insertAdjacentHTML('beforeend',`<circle cx="${x}" cy="${y}" r="2.5" fill="${d.valid?C.valid:C.invalid}" opacity=".85"/>`);
+  });
+  svg.insertAdjacentHTML('beforeend',
+    `<g transform="translate(${pL},${H-5})"><circle cx="0" cy="0" r="2.5" fill="${C.valid}"/><text x="8" y="3" fill="${C.dim}" font-family="JetBrains Mono" font-size="8">VALID</text><circle cx="55" cy="0" r="2.5" fill="${C.invalid}"/><text x="63" y="3" fill="${C.dim}" font-family="JetBrains Mono" font-size="8">INVALID</text></g>`
+  );
+}
+
+// ========== GROUP DATA ==========
+async function loadGroupData(){
+  const loading=document.getElementById('grp-loading');
+  const content=document.getElementById('grp-content');
+  const empty=document.getElementById('grp-empty');
+  loading.style.display='block'; content.style.display='none'; empty.style.display='none';
+
+  const sessions=await loadAllShared();
+  loading.style.display='none';
+
+  if(!sessions.length){empty.style.display='block';return;}
+  content.style.display='block';
+
+  // aggregate
+  let vSum=0,vN=0,iSum=0,iN=0,effects=[],totalTrials=0,accSum=0;
+  sessions.forEach(s=>{
+    const st=s.stats;
+    totalTrials+=st.n||0;
+    accSum+=st.acc||0;
+    if(st.vM!==null&&st.vN>0){vSum+=st.vM*st.vN;vN+=st.vN;}
+    if(st.iM!==null&&st.iN>0){iSum+=st.iM*st.iN;iN+=st.iN;}
+    if(st.effect!==null)effects.push(st.effect);
+  });
+  const gV=vN?vSum/vN:null, gI=iN?iSum/iN:null;
+  const gEf=effects.length?effects.reduce((a,b)=>a+b,0)/effects.length:null;
+  const sd=effects.length>1?Math.sqrt(effects.map(e=>(e-(gEf||0))**2).reduce((a,b)=>a+b,0)/(effects.length-1)):null;
+  const gAcc=sessions.length?accSum/sessions.length:null;
+
+  document.getElementById('grp-sub').textContent=`${sessions.length}名参加 · ${fmtDate(Date.now())}時点`;
+  document.getElementById('g-n').textContent=sessions.length;
+  document.getElementById('g-trials').textContent=totalTrials;
+  document.getElementById('g-acc').textContent=(gAcc!==null?gAcc.toFixed(1):'—')+'%';
+  setMval('g-vrt','v',gV!==null?Math.round(gV):'—','ms');
+  setMval('g-ivrt','iv',gI!==null?Math.round(gI):'—','ms');
+  setMval('g-ef','ef',gEf!==null?(gEf>0?'+':'')+Math.round(gEf):'—','ms');
+  setMval('g-sd','',sd!==null?'±'+Math.round(sd):'—','ms');
+
+  // interpretation
+  const gn=document.getElementById('g-note');
+  if(gEf===null){gn.innerHTML='データがありません。';}
+  else if(gEf>=25){gn.innerHTML=`グループ全体で<em>平均 ${Math.round(gEf)} ms</em> の明確なキュー効果が観察されています。空間注意のシフトが実験参加者全員で再現されています。標準偏差 ${sd!==null?'±'+Math.round(sd)+'ms':'-'} は個人差の大きさを表します。`;}
+  else if(gEf>=10){gn.innerHTML=`<em>平均 ${Math.round(gEf)} ms</em> のキュー効果があります。効果は存在しますが、より多くの参加者・試行数があると統計的に安定します。`;}
+  else if(gEf>=-10){gn.innerHTML=`現時点ではキュー効果が明確に検出されていません（${Math.round(gEf)} ms）。参加者が増えると傾向が見えやすくなります。`;}
+  else{gn.innerHTML=`グループ平均では非妥当キューの方が速い結果（<em>${Math.round(gEf)} ms</em>）です。長いSOA（800ms等）参加者が多い場合はIORが反映されている可能性があります。`;}
+
+  await new Promise(r=>requestAnimationFrame(r));
+  drawGroupRTChart(gV,gI,sessions);
+  drawEffectDistChart(effects, gEf);
+  drawSOAChart(sessions);
+}
+
+// Group RT bar chart (valid vs invalid, with individual dots)
+function drawGroupRTChart(gV, gI, sessions){
+  const svg=document.getElementById('g-rtchart');
+  const W=Math.max(svg.parentElement.clientWidth-28,200);
+  const H=160, pL=40,pR=16,pT=12,pB=24;
+  svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  svg.setAttribute('width',W); svg.setAttribute('height',H); svg.innerHTML='';
+  if(gV===null&&gI===null)return;
+  const all=[gV,gI,...sessions.map(s=>s.stats.vM).filter(v=>v!==null),...sessions.map(s=>s.stats.iM).filter(v=>v!==null)];
+  const hi=Math.max(...all,700), lo=Math.min(...all,150);
+  const toY=v=>pT+(H-pT-pB)*(1-(v-lo)/(hi-lo));
+  const yTicks=3;
+  for(let i=0;i<=yTicks;i++){
+    const v=lo+(hi-lo)*i/yTicks, y=toY(v);
+    svg.insertAdjacentHTML('beforeend',
+      `<line x1="${pL}" y1="${y}" x2="${W-pR}" y2="${y}" stroke="${C.line}" stroke-dasharray="2,3"/>` +
+      `<text x="${pL-4}" y="${y+3}" fill="${C.faint}" font-family="JetBrains Mono" font-size="8" text-anchor="end">${Math.round(v)}</text>`
+    );
+  }
+  const bW=Math.min((W-pL-pR)/6,60);
+  const cV=pL+(W-pL-pR)*.28, cI=pL+(W-pL-pR)*.72;
+  sessions.forEach(s=>{
+    if(s.stats.vM!==null){const y=toY(s.stats.vM);svg.insertAdjacentHTML('beforeend',`<circle cx="${cV+(Math.random()-.5)*bW*.7}" cy="${y}" r="2" fill="${C.valid}" opacity=".4"/>`);}
+    if(s.stats.iM!==null){const y=toY(s.stats.iM);svg.insertAdjacentHTML('beforeend',`<circle cx="${cI+(Math.random()-.5)*bW*.7}" cy="${y}" r="2" fill="${C.invalid}" opacity=".4"/>`);}
+  });
+  if(gV!==null){
+    const y=toY(gV);
+    svg.insertAdjacentHTML('beforeend',
+      `<rect x="${cV-bW/2}" y="${y}" width="${bW}" height="${H-pB-y}" fill="${C.valid}" opacity=".2" rx="1"/>` +
+      `<line x1="${cV-bW/2}" y1="${y}" x2="${cV+bW/2}" y2="${y}" stroke="${C.valid}" stroke-width="2.5"/>` +
+      `<text x="${cV}" y="${H-pB+12}" fill="${C.valid}" font-family="JetBrains Mono" font-size="9" text-anchor="middle">妥当</text>` +
+      `<text x="${cV}" y="${H-pB+22}" fill="${C.valid}" font-family="JetBrains Mono" font-size="8" text-anchor="middle">${Math.round(gV)}ms</text>`
+    );
+  }
+  if(gI!==null){
+    const y=toY(gI);
+    svg.insertAdjacentHTML('beforeend',
+      `<rect x="${cI-bW/2}" y="${y}" width="${bW}" height="${H-pB-y}" fill="${C.invalid}" opacity=".2" rx="1"/>` +
+      `<line x1="${cI-bW/2}" y1="${y}" x2="${cI+bW/2}" y2="${y}" stroke="${C.invalid}" stroke-width="2.5"/>` +
+      `<text x="${cI}" y="${H-pB+12}" fill="${C.invalid}" font-family="JetBrains Mono" font-size="9" text-anchor="middle">非妥当</text>` +
+      `<text x="${cI}" y="${H-pB+22}" fill="${C.invalid}" font-family="JetBrains Mono" font-size="8" text-anchor="middle">${Math.round(gI)}ms</text>`
+    );
+  }
+}
+
+// Cueing effect distribution dot plot
+function drawEffectDistChart(effects, mean){
+  const svg=document.getElementById('g-efchart');
+  const W=Math.max(svg.parentElement.clientWidth-28,200);
+  const H=110, pL=40,pR=16,pT=16,pB=24;
+  svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  svg.setAttribute('width',W); svg.setAttribute('height',H); svg.innerHTML='';
+  if(!effects.length)return;
+  const hi=Math.max(...effects,80), lo=Math.min(...effects,-40);
+  const toX=v=>pL+(W-pL-pR)*(v-lo)/(hi-lo);
+  const x0=toX(0);
+  svg.insertAdjacentHTML('beforeend',
+    `<line x1="${x0}" y1="${pT}" x2="${x0}" y2="${H-pB}" stroke="${C.dim}" stroke-width="1" stroke-dasharray="3,3"/>` +
+    `<text x="${x0}" y="${H-pB+11}" fill="${C.dim}" font-family="JetBrains Mono" font-size="8" text-anchor="middle">0</text>`
+  );
+  [lo,Math.round((hi+lo)/2),hi].forEach(v=>{
+    const x=toX(v);
+    svg.insertAdjacentHTML('beforeend',`<text x="${x}" y="${H-pB+11}" fill="${C.faint}" font-family="JetBrains Mono" font-size="8" text-anchor="middle">${Math.round(v)}</text>`);
+  });
+  svg.insertAdjacentHTML('beforeend',
+    `<text x="${pL}" y="${H-pB+22}" fill="${C.faint}" font-family="JetBrains Mono" font-size="7">↓ IOR（抑制復帰）</text>` +
+    `<text x="${W-pR}" y="${H-pB+22}" fill="${C.faint}" font-family="JetBrains Mono" font-size="7" text-anchor="end">↑ キュー効果</text>` +
+    `<line x1="${pL}" y1="${H-pB}" x2="${W-pR}" y2="${H-pB}" stroke="${C.line}"/>`
+  );
+  const cy=pT+(H-pT-pB)*0.42;
+  effects.forEach(ef=>{
+    const x=toX(ef), jy=cy+(Math.random()-.5)*(H-pT-pB)*.5;
+    svg.insertAdjacentHTML('beforeend',`<circle cx="${x}" cy="${jy}" r="4" fill="${ef>0?C.valid:C.invalid}" opacity=".75"/>`);
+  });
+  if(mean!==null){
+    const xm=toX(mean);
+    svg.insertAdjacentHTML('beforeend',
+      `<line x1="${xm}" y1="${pT}" x2="${xm}" y2="${H-pB}" stroke="${C.acc}" stroke-width="2"/>` +
+      `<text x="${xm+5}" y="${pT+10}" fill="${C.acc}" font-family="JetBrains Mono" font-size="8">平均 ${Math.round(mean)}ms</text>`
+    );
+  }
+}
+
+// SOA breakdown bar chart
+function drawSOAChart(sessions){
+  const svg=document.getElementById('g-soaChart');
+  const W=Math.max(svg.parentElement.clientWidth-28,200);
+  const H=150,pL=40,pR=16,pT=12,pB=36;
+  svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  svg.setAttribute('width',W); svg.setAttribute('height',H); svg.innerHTML='';
+  const bySOA={};
+  sessions.forEach(s=>{
+    const soa=s.cfg&&s.cfg.soa?s.cfg.soa:200;
+    if(!bySOA[soa])bySOA[soa]=[];
+    if(s.stats.effect!==null)bySOA[soa].push(s.stats.effect);
+  });
+  const soaKeys=Object.keys(bySOA).map(Number).sort((a,b)=>a-b);
+  if(soaKeys.length<2){
+    svg.insertAdjacentHTML('beforeend',`<text x="${W/2}" y="${H/2}" fill="${C.faint}" font-family="JetBrains Mono" font-size="10" text-anchor="middle">複数のSOA条件が必要です</text>`);
+    return;
+  }
+  const means=soaKeys.map(k=>bySOA[k].length?bySOA[k].reduce((a,b)=>a+b)/bySOA[k].length:null);
+  const ns=soaKeys.map(k=>bySOA[k].length);
+  const allV=means.filter(v=>v!==null);
+  if(!allV.length)return;
+  const hi=Math.max(...allV,60), lo=Math.min(...allV,-30);
+  const toY=v=>pT+(H-pT-pB)*(1-(v-lo)/(hi-lo));
+  const y0=toY(0);
+  svg.insertAdjacentHTML('beforeend',
+    `<line x1="${pL}" y1="${y0}" x2="${W-pR}" y2="${y0}" stroke="${C.dim}" stroke-dasharray="3,3"/>` +
+    `<text x="${pL-4}" y="${y0+3}" fill="${C.dim}" font-family="JetBrains Mono" font-size="8" text-anchor="end">0</text>` +
+    `<text x="${pL-4}" y="${pT+4}" fill="${C.faint}" font-family="JetBrains Mono" font-size="8" text-anchor="end">${Math.round(hi)}</text>`
+  );
+  const bW=Math.min((W-pL-pR)/(soaKeys.length+1)*0.6,50);
+  const xStep=(W-pL-pR)/(soaKeys.length+1);
+  soaKeys.forEach((soa,i)=>{
+    const m=means[i]; if(m===null)return;
+    const x=pL+xStep*(i+1), y=toY(m);
+    const col=m>=0?C.valid:C.invalid;
+    const y1=Math.min(y,y0), h2=Math.abs(y-y0)||1;
+    svg.insertAdjacentHTML('beforeend',
+      `<rect x="${x-bW/2}" y="${y1}" width="${bW}" height="${h2}" fill="${col}" opacity=".35" rx="1"/>` +
+      `<line x1="${x-bW/2}" y1="${y}" x2="${x+bW/2}" y2="${y}" stroke="${col}" stroke-width="2"/>` +
+      `<text x="${x}" y="${H-pB+12}" fill="${col}" font-family="JetBrains Mono" font-size="8" text-anchor="middle">SOA ${soa}</text>` +
+      `<text x="${x}" y="${H-pB+22}" fill="${C.faint}" font-family="JetBrains Mono" font-size="7" text-anchor="middle">n=${ns[i]}</text>` +
+      `<text x="${x}" y="${H-pB+32}" fill="${col}" font-family="JetBrains Mono" font-size="8" text-anchor="middle">${m>0?'+':''}${Math.round(m)}ms</text>`
+    );
+  });
+}
+
+// ========== STORAGE ==========
+const stOK=()=>typeof window!=='undefined'&&window.storage&&typeof window.storage.set==='function';
+const useLS=()=>typeof localStorage!=='undefined';
+
+async function saveShared(session){
+  const payload={sid:session.sid,timestamp:session.timestamp,cfg:session.cfg,stats:session.stats};
+  const jsonStr=JSON.stringify(payload);
+  if(stOK()){
+    try{await window.storage.set(SHARED_PFX+session.sid,jsonStr,true);return;}catch(e){}
+  }
+  if(useLS()){
+    try{localStorage.setItem(SHARED_PFX+session.sid,jsonStr);}catch(e){}
+  }
+}
+
+async function savePrivate(session){
+  const jsonStr=JSON.stringify(session);
+  if(stOK()){
+    try{await window.storage.set(MY_PFX+session.sid,jsonStr);return;}catch(e){}
+  }
+  if(useLS()){
+    try{localStorage.setItem(MY_PFX+session.sid,jsonStr);}catch(e){}
+  }
+}
+
+async function loadAllShared(){
+  const out=[];
+  if(stOK()){
+    try{
+      const res=await window.storage.list(SHARED_PFX,true);
+      if(res&&Array.isArray(res.keys)){
+        for(const k of res.keys){
+          try{
+            const r=await window.storage.get(k,true);
+            if(r&&r.value){
+              const obj=typeof r.value==='string'?JSON.parse(r.value):r.value;
+              out.push(obj);
+            }
+          }catch(e){}
+        }
+      }
+    }catch(e){}
+  }
+  if(useLS()){
+    try{
+      for(let i=0;i<localStorage.length;i++){
+        const k=localStorage.key(i);
+        if(k&&k.startsWith(SHARED_PFX)){
+          try{
+            const v=localStorage.getItem(k);
+            if(v){
+              const obj=JSON.parse(v);
+              if(obj&&obj.sid&&!out.find(s=>s.sid===obj.sid)){
+                out.push(obj);
+              }
+            }
+          }catch(e){}
+        }
+      }
+    }catch(e){}
+  }
+  out.sort((a,b)=>b.timestamp-a.timestamp);
+  return out;
+}
+
+async function loadMyHistory(){
+  const out=[];
+  if(stOK()){
+    try{
+      const res=await window.storage.list(MY_PFX);
+      if(res&&Array.isArray(res.keys)){
+        for(const k of res.keys){
+          try{
+            const r=await window.storage.get(k);
+            if(r&&r.value){
+              const obj=typeof r.value==='string'?JSON.parse(r.value):r.value;
+              out.push(obj);
+            }
+          }catch(e){}
+        }
+      }
+    }catch(e){}
+  }
+  if(useLS()){
+    try{
+      for(let i=0;i<localStorage.length;i++){
+        const k=localStorage.key(i);
+        if(k&&k.startsWith(MY_PFX)){
+          try{
+            const v=localStorage.getItem(k);
+            if(v){
+              const obj=JSON.parse(v);
+              if(obj&&obj.sid&&!out.find(s=>s.sid===obj.sid)){
+                out.push(obj);
+              }
+            }
+          }catch(e){}
+        }
+      }
+    }catch(e){}
+  }
+  out.sort((a,b)=>b.timestamp-a.timestamp);
+  renderMyHistory(out);
+}
+
+async function clearMyHistory(){
+  if(stOK()){
+    try{
+      const res=await window.storage.list(MY_PFX);
+      if(res&&Array.isArray(res.keys)){
+        for(const k of res.keys){
+          try{await window.storage.delete(k);}catch(e){}
+        }
+      }
+    }catch(e){}
+  }
+  if(useLS()){
+    try{
+      const keys=[];
+      for(let i=0;i<localStorage.length;i++){
+        const k=localStorage.key(i);
+        if(k&&k.startsWith(MY_PFX)){
+          keys.push(k);
+        }
+      }
+      keys.forEach(k=>localStorage.removeItem(k));
+    }catch(e){}
+  }
+}
+
+// ========== MY HISTORY RENDER ==========
+function renderMyHistory(sessions){
+  const list=document.getElementById('mh-list');
+  document.getElementById('mh-sub').textContent=sessions.length?sessions.length+'セッション記録済':'記録なし';
+  if(!sessions.length){
+    list.innerHTML='<div class="loading">まだ記録がありません</div>';
+    ['mh-v','mh-iv','mh-ef','mh-n'].forEach(id=>document.getElementById(id).innerHTML='—<span class="u">ms</span>');
+    document.getElementById('mh-n').innerHTML='0';
+    return;
+  }
+  let vS=0,vN=0,iS=0,iN=0;
+  sessions.forEach(s=>{
+    if(s.stats.vM!==null&&s.stats.vN>0){vS+=s.stats.vM*s.stats.vN;vN+=s.stats.vN;}
+    if(s.stats.iM!==null&&s.stats.iN>0){iS+=s.stats.iM*s.stats.iN;iN+=s.stats.iN;}
+  });
+  const gV=vN?vS/vN:null, gI=iN?iS/iN:null;
+  const effects=sessions.map(s=>s.stats.effect).filter(v=>v!==null);
+  const gEf=effects.length?effects.reduce((a,b)=>a+b)/effects.length:null;
+  setMval('mh-v','v',gV!==null?Math.round(gV):'—','ms');
+  setMval('mh-iv','iv',gI!==null?Math.round(gI):'—','ms');
+  setMval('mh-ef','ef',gEf!==null?(gEf>0?'+':'')+Math.round(gEf):'—','ms');
+  document.getElementById('mh-n').innerHTML=sessions.length;
+  list.innerHTML='';
+  sessions.forEach(s=>{
+    const v=s.stats.vM!==null?Math.round(s.stats.vM):'—';
+    const iv=s.stats.iM!==null?Math.round(s.stats.iM):'—';
+    const ef=s.stats.effect!==null?(s.stats.effect>0?'+':'')+Math.round(s.stats.effect):'—';
+    list.insertAdjacentHTML('beforeend',`
+      <div class="hitem">
+        <div class="hhead"><span class="hdate">${fmtDate(s.timestamp)}</span><span class="htag">${s.cfg.trials}試行 · ${s.cfg.validity}% · SOA${s.cfg.soa}</span></div>
+        <div class="hstats">
+          <div><div class="hsl">VALID</div><div class="hsv v">${v}<span style="font-size:8px;color:var(--faint)"> ms</span></div></div>
+          <div><div class="hsl">INVALID</div><div class="hsv iv">${iv}<span style="font-size:8px;color:var(--faint)"> ms</span></div></div>
+          <div><div class="hsl">EFFECT</div><div class="hsv ef">${ef}<span style="font-size:8px;color:var(--faint)"> ms</span></div></div>
+          <div><div class="hsl">ACC</div><div class="hsv">${s.stats.acc.toFixed(1)}<span style="font-size:8px;color:var(--faint)"> %</span></div></div>
+        </div>
+      </div>`);
+  });
+}
+
+// ========== MODAL ==========
+function confirmClear(){document.getElementById('modal').classList.add('on');}
+function closeModal(){document.getElementById('modal').classList.remove('on');}
+async function doClear(){closeModal();await clearMyHistory();loadMyHistory();}
+
+// ========== UTIL ==========
+function fmtDate(ts){
+  const d=new Date(ts);
+  return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+
+// init
+refreshLabels();
+</script>
+</body>
+</html>
